@@ -1,0 +1,30 @@
+
+
+
+# Terraform Functions
+
+# Configure Networking
+
+
+variable network_info {
+	default = "10.0.0.0/8"
+}
+
+
+cidr_block = ${cidrsubnet(var.network_info, 8, 1)}
+
+
+# The same Amazon Machine image (used to spin off instances) would have different ids based on regions. So if we want identical instances across regions, we would need a map
+
+variable "amis" {
+
+  type = "map"
+  default = {
+    us-east-1 = "ami-1234"
+    us-west-1 = "ami-5678"
+  }
+
+}
+
+
+ami = ${lookup(var.amis, "us-west-1")}

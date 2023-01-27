@@ -1,0 +1,105 @@
+# Resource group in azure is a fundamental container under which any other resources is contained. Needs Name, Providers, Location
+resource "azurerm_resource_group"{
+  name = "...."
+  location = "East US" # Different from AWS. Azure has all locations available as a provider, so you wouldnt provide different providers for multiple locations
+  providers = "azurerm.arm-1" #If you dont give the provider an alias qnd you dont specify the providers within the resource, then Terraform will figure it out.
+}
+
+
+
+
+
+resource "aws_instance" "nginx"{
+  count = "${var.instance_count}"
+	ami = "ami-c58c1ddr"
+	instance_type = "t2.micro"
+  subnet_id = ${"element(aws_subnet.subnet.*.id, count.index % var.subnet_count)}"
+
+  vpc_security_group_ids = ["${aws_security_group.nginx-sg.id}"]
+
+	key_name = "$var.key_name"
+
+	connection {
+		user = "ec2-user"
+		private_key = "${file(var.private_key_path)}"
+	}
+
+	provisioner "remote-exec"{
+
+		inline = [
+			"sudo yum install nginx - y",
+			"sudo service nginx start"
+		]
+	} 
+
+  provisioner "file" {
+
+    content = << EOF
+    access_key = ${aws_iam_access_key.write_user.id}
+    secret_key = ${aws_iam_access_key.write_user.secret}
+    use_https = True
+    bucket_location = US
+    
+    EOF 
+      destination = "/home/ec2-user/.s3cfg"
+  }
+}
+
+
+resource "aws_vpc" "vpc" {
+    # id??
+}
+
+
+# Networking
+
+
+
+Resouce definition of aws subnet which refers to multiple subnets that will be created
+
+resource "aws_subnet" "subnet" { 
+  count = "${var.subnet_count}"
+  cidr_block - "${cidrsubnet(var.network_address_space, 8, count.index + 1)}"
+  vpc_id = "${aws_vpc.vpc.id}" 
+  map_public_ip_on_launch = "true"
+  availability_zone = "${data.aws_availability_zones.available.names[count.index]}"
+
+  tags {}
+
+}
+
+
+# Routing
+
+
+
+resource "aws_route_table_association" "rta-subnet" {
+
+  count = "${var.subnet_count}"
+  subnet_id = "${element(aws_subnet.subnet.*.id, count.index)}"
+  route_table_id = "${aws_route_table.rtb.id}"
+  
+}
+
+# Non dynamic part: to create dns zone in azure statically
+
+resource "azure_dns_cname_record" "elb" {
+  name = 
+  zone_name = "${var.dns_zone_name}""
+  resource_group_name = "${var.dns_resource_group}"
+  ttl = "30"
+  record = "${aws_elb.web.dns_name}"
+  provider = "azurerm.arm-1"
+
+
+  tags {
+    # could tag with resources with other providers
+  }
+
+
+    
+}
+
+
+  
+}
